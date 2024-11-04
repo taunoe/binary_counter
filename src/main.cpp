@@ -2,11 +2,12 @@
  * main.cpp
  * Binary Counter
  * Started: 02.11.2024
- * Edited:  03.11.2024
+ * Edited:  04.11.2024
  * Copyright Tauno Erik 2024
  */
 #include <Arduino.h>
 #include <LedControl.h> // MAX7219
+#include "Tauno_PIR.h"
 
 #define SERIAL_SPEED 9600
 #define PRINT_INTERVAL 1000
@@ -17,6 +18,8 @@
 #define NUM_OF_MATRIXES 1
 #define MATRIX_ADDR 0
 #define MATRIX_BRIGHTNESS 8 // Set brightness level (0-15)
+#define LEFT_PIR_PIN 12
+#define RIGHT_PIR_PIN 9
 
 int green_leds[8] = {
     0b10101010, // Row 0
@@ -46,6 +49,10 @@ uint8_t bit = 0b00000001;
 
 LedControl matrix = LedControl(DIN_PIN, CLK_PIN, CS_PIN, NUM_OF_MATRIXES);
 
+
+Tauno_PIR left_pir(LEFT_PIR_PIN);
+Tauno_PIR right_pir(RIGHT_PIR_PIN);
+
 /*************************************************************************
  * Function declarations:
  ************************************************************************/
@@ -61,6 +68,9 @@ void setup()
   matrix.shutdown(MATRIX_ADDR, false); // Wake up the display
   matrix.brightness(MATRIX_ADDR, MATRIX_BRIGHTNESS);
   matrix.clearDisplay(MATRIX_ADDR); // Clear the display
+
+  left_pir.begin();
+  right_pir.begin();
 }
 
 void loop()
@@ -71,6 +81,16 @@ void loop()
   static bool change_matrix = false;
 
   unsigned long current_time = millis();
+
+  if (left_pir.is_motion())
+  {
+    Serial.println("Left PIR");
+  }
+
+  if (right_pir.is_motion())
+  {
+    Serial.println("Right PIR");
+  }
 
   // Serial Print time
   if (current_time - old_time >= PRINT_INTERVAL)
