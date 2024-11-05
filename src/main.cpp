@@ -2,7 +2,7 @@
  * main.cpp
  * Binary Counter
  * Started: 02.11.2024
- * Edited:  04.11.2024
+ * Edited:  05.11.2024
  * Copyright Tauno Erik 2024
  */
 #include <Arduino.h>
@@ -11,7 +11,7 @@
 
 #define SERIAL_SPEED 9600
 #define PRINT_INTERVAL 1000
-#define MATRIX_INTERVAL 1000
+#define MATRIX_INTERVAL 500
 #define DIN_PIN 11
 #define CLK_PIN 13
 #define CS_PIN 10
@@ -21,7 +21,7 @@
 #define LEFT_PIR_PIN 12
 #define RIGHT_PIR_PIN 9
 
-int green_leds[8] = {
+uint8_t green_leds[8] = {
     0b10101010, // Row 0
     0b01010101, // Row 1
     0b10101010, // Row 2
@@ -32,7 +32,7 @@ int green_leds[8] = {
     0b01010101, // Row 7
 };
 
-int yellow_leds[8] = {
+uint8_t yellow_leds[8] = {
     0b01010101, // Row 0
     0b10101010, // Row 1
     0b01010101, // Row 2
@@ -49,7 +49,6 @@ uint8_t bit = 0b00000001;
 
 LedControl matrix = LedControl(DIN_PIN, CLK_PIN, CS_PIN, NUM_OF_MATRIXES);
 
-
 Tauno_PIR left_pir(LEFT_PIR_PIN);
 Tauno_PIR right_pir(RIGHT_PIR_PIN);
 
@@ -60,6 +59,7 @@ int count();
 void one_by_one_all();
 void one_by_one_yellows();
 void one_by_one_greens();
+bool is_bit_high(uint8_t bitMask, uint8_t arr[], int size);
 
 void setup()
 {
@@ -102,7 +102,7 @@ void loop()
   // Matrix time
   if (current_time - old_matrix_time >= MATRIX_INTERVAL)
   {
-    Serial.println("Matrix time");
+    // Serial.println("Matrix time");
     change_matrix = true;
     old_matrix_time = current_time;
   }
@@ -111,8 +111,8 @@ void loop()
   if (to_print)
   {
     int num = count();
-    Serial.print(num);
-    Serial.print("\n");
+    // Serial.print(num);
+    // Serial.print("\n");
     to_print = false;
   }
 
@@ -120,7 +120,8 @@ void loop()
   if (change_matrix)
   {
     change_matrix = false;
-    one_by_one_all();
+    // one_by_one_all();
+    one_by_one_yellows();
   }
 }
 
@@ -179,8 +180,29 @@ void one_by_one_yellows()
     row = 0;
   }
 
-  matrix.setRow(MATRIX_ADDR, row, bit);
+  bool is_yellow = is_bit_high(bit, yellow_leds, row);
 
-  bit = bit << 1;
+  if (is_yellow)
+  {
+    matrix.setRow(MATRIX_ADDR, row, bit);
+  }
+  // else time jump?!
+
+  bit = 1 << col;
   col++;
+}
+
+bool is_bit_high(uint8_t bitMask, uint8_t arr[], int row)
+{
+  Serial.print("arr ");
+  Serial.print(arr[row], BIN);
+  Serial.print(" mask ");
+  Serial.print(bitMask, BIN);
+  if (arr[row] & bitMask)
+  { // Check if the specific bit is high in this element
+    Serial.println(" true");
+    return true; // Bit is high in at least one array element
+  }
+  Serial.println(" false");
+  return false; // Bit is not high in any array element
 }
