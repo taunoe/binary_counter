@@ -2,7 +2,7 @@
  * main.cpp
  * Binary Counter
  * Started: 02.11.2024
- * Edited:  06.11.2024
+ * Edited:  09.11.2024
  * Copyright Tauno Erik 2024
  */
 #include <Arduino.h>
@@ -11,20 +11,31 @@
 #include "Tauno_PIR.h"
 #define DEBUG_ENABLED 1
 #include "tauno_debug.h"
+#include "Tauno_shift_register.h"
 
 #define SERIAL_SPEED 9600
+
 #define PRINT_INTERVAL 1000
 #define MATRIX_INTERVAL 500
-#define DIN_PIN 11
-#define CLK_PIN 13
-#define CS_PIN 10
+
+#define MATRIX_DIN_PIN 11  // PB3
+#define MATRIX_CLK_PIN 13  // PB5
+#define MATRIX_CS_PIN 10  // PB2
 #define NUM_OF_MATRIXES 1
 #define MATRIX_ADDR 0
 #define MATRIX_BRIGHTNESS 8 // Set brightness level (0-15)
-#define LEFT_PIR_PIN 12
-#define RIGHT_PIR_PIN 9
+#define LEFT_PIR_PIN 12  // PB4
+#define RIGHT_PIR_PIN 9  // PB1
 #define NUM_RGB_LEDS 12
-#define RGB_DATA_PIN 4
+#define RGB_DATA_PIN 4  // PD4
+
+#define SHIFT_DATA_PIN 5   // PD5
+#define SHIFT_CLOCK_PIN 7  // PD7
+#define SHIFT_LATCH_PIN 6  // PD6
+#define SHIFT_NUM_OUTPUTS 8
+#define SHIFT_PWM_PERIOD 10 //100Hz
+#define OFF false
+#define ON true
 
 uint8_t green_leds[8] = {
     0b10101010, // Row 0
@@ -52,7 +63,7 @@ int row = 0;
 int col = 1;
 uint8_t bit = 0b00000001;
 
-LedControl matrix = LedControl(DIN_PIN, CLK_PIN, CS_PIN, NUM_OF_MATRIXES);
+LedControl matrix = LedControl(MATRIX_DIN_PIN, MATRIX_CLK_PIN, MATRIX_CS_PIN, NUM_OF_MATRIXES);
 
 Tauno_PIR left_pir(LEFT_PIR_PIN);
 Tauno_PIR right_pir(RIGHT_PIR_PIN);
@@ -61,6 +72,11 @@ bool all_greens_on = false;
 bool all_yellows_on = false;
 
 CRGB rgbleds[NUM_RGB_LEDS];
+
+Tauno_shift_register flower(SHIFT_DATA_PIN, SHIFT_CLOCK_PIN, SHIFT_LATCH_PIN, SHIFT_NUM_OUTPUTS, SHIFT_PWM_PERIOD);
+
+//#include <ShiftPWM.h>
+//ShiftPWM pwm(SHIFT_DATA_PIN, SHIFT_CLOCK_PIN, SHIFT_LATCH_PIN, SHIFT_NUM_OUTPUTS, SHIFT_PWM_PERIOD);
 
 /*************************************************************************
  * Function declarations:
@@ -89,25 +105,40 @@ void setup()
   FastLED.setBrightness(50);
   FastLED.clear();
   FastLED.show();
+
+  flower.begin();
+  flower.set_PWM(128); // 50% brightness
+
+  flower.set_pin(0, OFF);
+  flower.set_pin(1, ON);
+  flower.set_pin(2, OFF);
+  flower.set_pin(3, ON);
+  flower.set_pin(4, ON);
 }
+
+static uint8_t d = 0b10000001;
 
 void loop()
 {
   static unsigned long old_time = 0;
   static unsigned long old_matrix_time = 0;
+
   static bool to_print = false;
   static bool change_matrix = false;
 
   unsigned long current_time = millis();
 
+  flower.run();
+
+  // RGB LEDS
   for(int i = 0; i < NUM_RGB_LEDS; i++)
   {
     rgbleds[i] = CRGB::Yellow;
   }
 
-
   FastLED.show();
 
+  // MOTION
   if (left_pir.is_motion())
   {
     DEBUG_PRINTLN("Left PIR");
@@ -143,6 +174,9 @@ void loop()
     int num = count();
     // Serial.print(num);
     // Serial.print("\n");
+    uint8_t pin = num % 10;
+    flower.pins_off();
+    flower.set_pin(pin, ON);
     to_print = false;
   }
 
@@ -155,6 +189,7 @@ void loop()
     // one_by_one_greens();
     //all_yellows();
   }
+  
 }
 
 /*************************************************************************
